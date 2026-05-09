@@ -221,8 +221,9 @@
             <div class="date">First Meeting</div>
             <div class="content">The day everything began.</div>
           </div>
-          <div class="tc-image empty" id="img-first-meeting">
-            <div class="img-click" onclick="openMainImg('first-meeting')">
+          <div class="tc-image" id="img-first-meeting">
+            <img src="images/18.jpg" alt="First Meeting" id="mainImg-first-meeting">
+            <div class="img-click" onclick="openLb(['images/18.jpg'], 0)">
               <svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
             </div>
           </div>
@@ -237,8 +238,9 @@
             <div class="date">First Date</div>
             <div class="content">The most beautiful date of my life.</div>
           </div>
-          <div class="tc-image empty" id="img-first-date">
-            <div class="img-click" onclick="openMainImg('first-date')">
+          <div class="tc-image" id="img-first-date">
+            <img src="images/5.jpg" alt="First Date" id="mainImg-first-date">
+            <div class="img-click" onclick="openLb(['images/5.jpg'], 0)">
               <svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
             </div>
           </div>
@@ -297,8 +299,10 @@
 
     /* Default main images for events that have one hardcoded */
     const DEFAULT_IMGS = {
-      'first-trip': 'images/22.jpg',
-      'today':      'images/32.jpg'
+      'first-meeting': 'images/18.jpg',
+      'first-date':    'images/5.jpg',
+      'first-trip':    'images/22.jpg',
+      'today':         'images/32.jpg'
     };
 
     function getPhotos(id) {

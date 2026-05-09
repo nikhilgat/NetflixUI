@@ -93,7 +93,7 @@ function enterSite() {
     if (heroVideo) {
       heroVideo.muted = true;
       heroVideo.loop  = true;
-      heroVideo.src   = 'videos/hero.mp4';
+      heroVideo.src   = 'https://drive.google.com/uc?export=download&id=14rGLTd0C6UQANzaKSPnS65cschoK9nS8';
       heroVideo.load();
       heroVideo.play().catch(() => heroVideo.setAttribute('controls', ''));
     }

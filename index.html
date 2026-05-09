@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Our Story</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
+  <style>
+
+    /* ═══════════════════════════════════
+       AMBIENT BACKGROUND LAYERS
+    ═══════════════════════════════════ */
+    .ambient-bg {
+      position: fixed; inset: 0; z-index: 0;
+      pointer-events: none; overflow: hidden;
+    }
+
+    /* Starfield canvas (sits behind everything) */
+    #starCanvas {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      opacity: 0.6;
+    }
+
+    /* Particle canvas */
+    #particleCanvas {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+    }
+
+    /* Breathing gradient orbs */
+    .orb {
+      position: absolute; border-radius: 50%;
+      filter: blur(110px);
+    }
+    .orb-1 {
+      width: 700px; height: 700px;
+      background: radial-gradient(circle, #e50914, transparent 70%);
+      top: -200px; left: -200px; opacity: .2;
+      animation: orbFloat1 18s ease-in-out infinite;
+    }
+    .orb-2 {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, #ff4f6d, transparent 70%);
+      bottom: 5%; right: -150px; opacity: .14;
+      animation: orbFloat2 24s ease-in-out infinite;
+    }
+    .orb-3 {
+      width: 420px; height: 420px;
+      background: radial-gradient(circle, #e50914, transparent 70%);
+      top: 45%; left: 38%; opacity: .09;
+      animation: orbFloat3 30s ease-in-out infinite;
+    }
+    /* Extra pink orb for warmth */
+    .orb-4 {
+      width: 350px; height: 350px;
+      background: radial-gradient(circle, #ff9ec4, transparent 70%);
+      top: 60%; left: 10%; opacity: .08;
+      animation: orbFloat2 20s ease-in-out infinite reverse;
+    }
+
+    @keyframes orbFloat1 {
+      0%,100% { transform: translate(0,0) scale(1); }
+      33%     { transform: translate(100px,70px) scale(1.15); }
+      66%     { transform: translate(50px,150px) scale(.9); }
+    }
+    @keyframes orbFloat2 {
+      0%,100% { transform: translate(0,0) scale(1); }
+      50%     { transform: translate(-90px,-110px) scale(1.2); }
+    }
+    @keyframes orbFloat3 {
+      0%,100% { transform: translate(0,0) scale(1); opacity:.09; }
+      40%     { transform: translate(-70px,60px) scale(1.3); opacity:.14; }
+    }
+
+    /* Noise texture overlay — adds film grain */
+    .noise-overlay {
+      position: fixed; inset: 0; z-index: 1;
+      pointer-events: none;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 180px;
+      animation: noiseShift 0.15s steps(1) infinite;
+    }
+    @keyframes noiseShift {
+      0%  { background-position: 0 0; }
+      25% { background-position: -20px -30px; }
+      50% { background-position: 15px 10px; }
+      75% { background-position: -10px 25px; }
+    }
+
+    /* ═══════════════════════════════════
+       FLOATING OBJECTS LAYER
+    ═══════════════════════════════════ */
+    #floatLayer {
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 2;
+      overflow: hidden;
+    }
+
+    .float-obj {
+      position: absolute;
+      bottom: -50px;
+      opacity: 0;
+      animation: floatUp linear both;
+      user-select: none;
+      will-change: transform, opacity;
+    }
+
+    @keyframes floatUp {
+      0%   {
+        transform: translateY(0) translateX(0) rotate(0deg) scale(0.5);
+        opacity: 0;
+      }
+      8%   { opacity: 0.85; transform: translateY(-8vh) translateX(calc(var(--drift) * 0.1)) rotate(calc(var(--rot) * 0.2)) scale(1); }
+      50%  {
+        opacity: 0.7;
+        transform: translateY(-55vh) translateX(calc(var(--drift) * 0.6)) rotate(calc(var(--rot) * 0.7)) scale(1.1);
+      }
+      85%  { opacity: 0.3; }
+      100% {
+        transform: translateY(-115vh) translateX(var(--drift)) rotate(var(--rot)) scale(0.7);
+        opacity: 0;
+      }
+    }
+
+    /* ═══════════════════════════════════
+       CURSOR TRAIL LAYER
+    ═══════════════════════════════════ */
+    #cursorTrail {
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 3;
+      overflow: hidden;
+    }
+
+    .cursor-heart {
+      position: fixed;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      user-select: none;
+      animation: cursorPop 0.9s ease-out forwards;
+      will-change: transform, opacity;
+    }
+
+    @keyframes cursorPop {
+      0%   { opacity: 1;   transform: translate(-50%, -50%) scale(1)   translateY(0); }
+      60%  { opacity: 0.7; transform: translate(-50%, -50%) scale(1.4) translateY(-18px); }
+      100% { opacity: 0;   transform: translate(-50%, -50%) scale(0.5) translateY(-36px); }
+    }
+
+    /* ═══════════════════════════════════
+       PULSING VIGNETTE — subtle edge glow
+    ═══════════════════════════════════ */
+    .vignette {
+      position: fixed; inset: 0; z-index: 1;
+      pointer-events: none;
+      background: radial-gradient(ellipse at center, transparent 55%, rgba(229,9,20,0.06) 100%);
+      animation: vignettePulse 4s ease-in-out infinite;
+    }
+    @keyframes vignettePulse {
+      0%,100% { opacity: 0.6; }
+      50%     { opacity: 1.0; }
+    }
+
+    /* ═══════════════════════════════════
+       Z-INDEX: content above all bg layers
+    ═══════════════════════════════════ */
+    .main-site > *:not(.ambient-bg):not(#floatLayer):not(#cursorTrail):not(.noise-overlay):not(.vignette) {
+      position: relative; z-index: 10;
+    }
+
+    /* ═══════════════════════════════════
+       ANIMATED CARD IMAGES
+    ═══════════════════════════════════ */
+    .card-img-wrap {
+      position: relative; overflow: hidden;
+      border-radius: 8px 8px 0 0; height: 200px;
+    }
+    .card-img-wrap img {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover;
+      transition: opacity 1.2s ease, transform 8s ease;
+    }
+    .card-img-wrap img.slide-front { opacity: 1; transform: scale(1.05); }
+    .card-img-wrap img.slide-back  { opacity: 0; transform: scale(1.0); }
+    .card-img-wrap.fading img.slide-front { opacity: 0; transform: scale(1.08); }
+    .card-img-wrap.fading img.slide-back  { opacity: 1; transform: scale(1.05); }
+    @media(max-width:768px) { .card-img-wrap { height: 150px; } }
+
+    /* ═══════════════════════════════════
+       PROFILE SCREEN EXTRAS
+    ═══════════════════════════════════ */
+    /* Shimmer on profile cards */
+    .profile-card img {
+      position: relative;
+    }
+    .profile-card::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, transparent 40%, rgba(229,9,20,0.3) 50%, transparent 60%);
+      background-size: 200% 200%;
+      opacity: 0;
+      transition: opacity 0.3s;
+      animation: shimmer 2s linear infinite;
+      pointer-events: none;
+    }
+    .profile-card:hover::after { opacity: 1; }
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- PROFILE SCREEN -->
+  <div class="profile-screen" id="profileScreen">
+    <div class="profile-screen-logo">N ❤ S</div>
+    <h1>Who's watching?</h1>
+    <div class="profiles">
+      <div class="profile-card" onclick="enterSite()">
+        <img src="images/profile1.jpg" alt="Nikhil">
+        <p>Nikhil 💙</p>
+      </div>
+      <div class="profile-card" onclick="enterSite()">
+        <img src="images/profile2.jpg" alt="Shruti">
+        <p>Shruti 💗</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN SITE -->
+  <div class="main-site" id="mainSite">
+
+    <!-- BG LAYERS (bottom to top) -->
+    <div class="ambient-bg">
+      <canvas id="starCanvas"></canvas>
+      <canvas id="particleCanvas"></canvas>
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
+      <div class="orb orb-4"></div>
+    </div>
+    <div class="noise-overlay"></div>
+    <div class="vignette"></div>
+
+    <!-- FLOATING EMOJIS -->
+    <div id="floatLayer"></div>
+
+    <!-- CURSOR TRAIL -->
+    <div id="cursorTrail"></div>
+
+    <header class="navbar" id="navbar">
+      <div class="logo">N ❤ S</div>
+      <nav>
+        <a href="index.html" class="active">Home</a>
+        <a href="gallery.html">Gallery</a>
+        <a href="timeline.html">Timeline</a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <video id="heroVideo" muted loop playsinline class="hero-video"></video>
+      <div class="overlay"></div>
+      <div class="hero-content">
+        <div class="hero-badge">Just for us</div>
+        <h1>Our<br>Love Story</h1>
+        <p id="typingText"><span class="typing-cursor"></span></p>
+        <div class="buttons">
+          <button class="play-btn" id="playBtn" onclick="toggleSound()">▶ Play</button>
+          <button class="info-btn" onclick="window.location='timeline.html'">ℹ More Info</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="content-row fade-in">
+      <div class="row-header">
+        <h2>Continue Watching</h2>
+        <a href="gallery.html" class="see-all">See all &rsaquo;</a>
+      </div>
+      <div class="swiper mySwiper">
+        <div class="swiper-wrapper">
+          <div class="swiper-slide card" data-slot="0">
+            <div class="card-img-wrap">
+              <img class="slide-back" src="" alt=""><img class="slide-front" src="" alt="">
+              <div class="card-progress"><div class="card-progress-fill" style="width:65%"></div></div>
+            </div>
+            <div class="card-info">
+              <div class="card-info-actions">
+                <button class="card-info-btn primary">▶</button><button class="card-info-btn">+</button><button class="card-info-btn">♡</button>
+              </div>
+              <h4>Memory I</h4>
+              <div class="card-meta"><span class="match">97% Match</span> &nbsp;2024</div>
+            </div>
+          </div>
+          <div class="swiper-slide card" data-slot="1">
+            <div class="card-img-wrap">
+              <img class="slide-back" src="" alt=""><img class="slide-front" src="" alt="">
+              <div class="card-progress"><div class="card-progress-fill" style="width:42%"></div></div>
+            </div>
+            <div class="card-info">
+              <div class="card-info-actions">
+                <button class="card-info-btn primary">▶</button><button class="card-info-btn">+</button><button class="card-info-btn">♡</button>
+              </div>
+              <h4>Memory II</h4>
+              <div class="card-meta"><span class="match">99% Match</span> &nbsp;2024</div>
+            </div>
+          </div>
+          <div class="swiper-slide card" data-slot="2">
+            <div class="card-img-wrap">
+              <img class="slide-back" src="" alt=""><img class="slide-front" src="" alt="">
+            </div>
+            <div class="card-info">
+              <div class="card-info-actions">
+                <button class="card-info-btn primary">▶</button><button class="card-info-btn">+</button><button class="card-info-btn">♡</button>
+              </div>
+              <h4>Memory III</h4>
+              <div class="card-meta"><span class="match">98% Match</span> &nbsp;2024</div>
+            </div>
+          </div>
+          <div class="swiper-slide card" data-slot="3">
+            <div class="card-img-wrap">
+              <img class="slide-back" src="" alt=""><img class="slide-front" src="" alt="">
+            </div>
+            <div class="card-info">
+              <div class="card-info-actions">
+                <button class="card-info-btn primary">▶</button><button class="card-info-btn">+</button><button class="card-info-btn">♡</button>
+              </div>
+              <h4>Memory IV</h4>
+              <div class="card-meta"><span class="match">100% Match</span> &nbsp;2024</div>
+            </div>
+          </div>
+          <div class="swiper-slide card" data-slot="4">
+            <div class="card-img-wrap">
+              <img class="slide-back" src="" alt=""><img class="slide-front" src="" alt="">
+            </div>
+            <div class="card-info">
+              <div class="card-info-actions">
+                <button class="card-info-btn primary">▶</button><button class="card-info-btn">+</button><button class="card-info-btn">♡</button>
+              </div>
+              <h4>Memory V</h4>
+              <div class="card-meta"><span class="match">100% Match</span> &nbsp;2024</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="content-row fade-in">
+      <div class="row-header">
+        <h2>Our Favourite Moments</h2>
+        <a href="gallery.html" class="see-all">See all &rsaquo;</a>
+      </div>
+      <div class="swiper mySwiper2">
+        <div class="swiper-wrapper">
+          <div class="swiper-slide card" data-slot="5">
+            <div class="card-img-wrap"><img class="slide-back" src="" alt=""><img class="slide-front" src="" alt=""></div>
+            <div class="card-info">
+              <div class="card-info-actions"><button class="card-info-btn primary">▶</button><button class="card-info-btn">+</button><button class="card-info-btn">♡</button></div>
+              <h4>Moment VI</h4><div class="card-meta"><span class="match">98% Match</span></div>
+            </div>
+          </div>
+          <div class="swiper-slide card" data-slot="6">
+            <div class="card-img-wrap"><img class="slide-back" src="" alt=""><img class="slide-front" src="" alt=""></div>
+            <div class="card-info">
+              <div class="card-info-actions"><button class="card-info-btn primary">▶</button><button class="card-info-btn">+</button><button class="card-info-btn">♡</button></div>
+              <h4>Moment VII</h4><div class="card-meta"><span class="match">99% Match</span></div>
+            </div>
+          </div>
+          <div class="swiper-slide card" data-slot="7">
+            <div class="card-img-wrap"><img class="slide-back" src="" alt=""><img class="slide-front" src="" alt=""></div>
+            <div class="card-info">
+              <div class="card-info-actions"><button class="card-info-btn primary">▶</button><button class="card-info-btn">+</button><button class="card-info-btn">♡</button></div>
+              <h4>Moment VIII</h4><div class="card-meta"><span class="match">100% Match</span></div>
+            </div>
+          </div>
+          <div class="swiper-slide card" data-slot="8">
+            <div class="card-img-wrap"><img class="slide-back" src="" alt=""><img class="slide-front" src="" alt=""></div>
+            <div class="card-info">
+              <div class="card-info-actions"><button class="card-info-btn primary">▶</button><button class="card-info-btn">+</button><button class="card-info-btn">♡</button></div>
+              <h4>Moment IX</h4><div class="card-meta"><span class="match">97% Match</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span class="footer-heart">❤️</span>
+      <p>Made with endless love &nbsp;·&nbsp; Nikhil &amp; Shruti</p>
+    </footer>
+  </div>
+
+  <audio id="bgMusic" loop>
+    <source src="music/song.mp3" type="audio/mp3">
+  </audio>
+
+  <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

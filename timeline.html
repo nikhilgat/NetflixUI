@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Our Timeline</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+
+    /* ── Ambient ── */
+    #floatLayer{position:fixed;inset:0;pointer-events:none;z-index:5;overflow:hidden;}
+    #cursorTrail{position:fixed;inset:0;pointer-events:none;z-index:6;overflow:hidden;}
+    .float-obj{position:absolute;bottom:-50px;opacity:0;animation:floatUp linear both;user-select:none;}
+    @keyframes floatUp{0%{transform:translateY(0) translateX(0) rotate(0deg) scale(.5);opacity:0}8%{opacity:.85}50%{opacity:.7;transform:translateY(-55vh) translateX(calc(var(--drift)*.6)) rotate(calc(var(--rot)*.7)) scale(1.1)}85%{opacity:.3}100%{transform:translateY(-115vh) translateX(var(--drift)) rotate(var(--rot)) scale(.7);opacity:0}}
+    .cursor-heart{position:fixed;transform:translate(-50%,-50%);pointer-events:none;user-select:none;animation:cursorPop .9s ease-out forwards;}
+    @keyframes cursorPop{0%{opacity:1;transform:translate(-50%,-50%) scale(1) translateY(0)}60%{opacity:.7;transform:translate(-50%,-50%) scale(1.4) translateY(-18px)}100%{opacity:0;transform:translate(-50%,-50%) scale(.5) translateY(-36px)}}
+    .vignette{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at center,transparent 55%,rgba(229,9,20,0.05) 100%);animation:vignettePulse 4s ease-in-out infinite;}
+    @keyframes vignettePulse{0%,100%{opacity:.6}50%{opacity:1}}
+
+    /* ── OVERRIDE: wider container ── */
+    .timeline-container {
+      max-width: 1100px;
+    }
+
+    /* ══ TIMELINE CARD — two-column layout ══ */
+    .timeline-card {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      padding: 0;
+      overflow: hidden;
+      border-radius: 16px;
+      min-height: 300px;
+    }
+
+    /* Left: text block */
+    .tc-text {
+      flex: 0 0 300px;
+      padding: 36px 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    /* Right: image panel */
+    .tc-image {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      min-height: 300px;
+      border-left: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .tc-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.6s ease;
+      filter: brightness(0.92);
+    }
+
+    .timeline-card:hover .tc-image img {
+      transform: scale(1.04);
+      filter: brightness(1.0);
+    }
+
+    /* Subtle gradient fade on left edge of image */
+    .tc-image::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to right, var(--surface) 0%, transparent 30%);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* Click overlay */
+    .tc-image .img-click {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tc-image .img-click svg {
+      width: 44px; height: 44px;
+      stroke: white; fill: none; stroke-width: 1.5;
+      opacity: 0;
+      transition: opacity 0.3s;
+      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+    }
+
+    .timeline-card:hover .tc-image .img-click svg { opacity: 0.85; }
+
+    /* No-image placeholder */
+    .tc-image.empty {
+      background: rgba(255,255,255,0.03);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .tc-image.empty::after {
+      content: '❤️';
+      font-size: 48px;
+      opacity: 0.15;
+    }
+    .tc-image.empty::before { display: none; }
+
+    /* ══ EXTRA PHOTO STRIP (below card, for localStorage photos) ══ */
+    .extra-photos {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+      padding-left: 4px;
+    }
+
+    .extra-photo {
+      width: 80px; height: 80px;
+      border-radius: 8px; object-fit: cover;
+      cursor: pointer;
+      border: 2px solid rgba(255,255,255,0.07);
+      transition: transform 0.28s, border-color 0.28s, box-shadow 0.28s;
+    }
+    .extra-photo:hover {
+      transform: scale(1.1);
+      border-color: var(--red);
+      box-shadow: 0 0 16px rgba(229,9,20,0.3);
+    }
+
+    /* ══ TIMELINE ITEM WRAPPER ══ */
+    .timeline-item {
+      margin-bottom: 64px;
+    }
+
+    /* ══ LIGHTBOX ══ */
+    .tl-lightbox {
+      display: none;
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0,0,0,0.95);
+      backdrop-filter: blur(18px);
+      justify-content: center; align-items: center;
+    }
+    .tl-lightbox.open { display: flex; }
+
+    .tl-lb-img {
+      max-width: 90vw; max-height: 90vh;
+      object-fit: contain; border-radius: 12px;
+      box-shadow: 0 40px 100px rgba(0,0,0,0.9);
+      animation: lbPop 0.28s cubic-bezier(0.25,0.46,0.45,0.94);
+      display: block;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    @keyframes lbPop {
+      from { transform: scale(0.88); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+
+    .tl-lb-close {
+      position: fixed; top: 20px; right: 28px;
+      font-size: 40px; background: none; border: none;
+      color: rgba(255,255,255,0.45); cursor: pointer;
+      transition: color 0.2s, transform 0.2s; z-index: 10000; line-height: 1;
+    }
+    .tl-lb-close:hover { color: #fff; transform: rotate(90deg); }
+
+    .tl-lb-arrow {
+      position: fixed; top: 50%; transform: translateY(-50%);
+      width: 52px; height: 52px; border-radius: 50%;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+      color: white; font-size: 26px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s; z-index: 10000; user-select: none;
+    }
+    .tl-lb-arrow:hover { background: rgba(255,255,255,0.2); }
+    .tl-lb-arrow.prev { left: 18px; }
+    .tl-lb-arrow.next { right: 18px; }
+    .tl-lightbox.single .tl-lb-arrow { display: none; }
+
+    /* ══ RESPONSIVE ══ */
+    @media (max-width: 700px) {
+      .timeline-card { flex-direction: column; min-height: unset; }
+      .tc-text { flex: none; padding: 24px 20px; }
+      .tc-image { min-height: 220px; border-left: none; border-top: 1px solid rgba(255,255,255,0.06); }
+      .tc-image::before { background: linear-gradient(to bottom, var(--surface) 0%, transparent 30%); }
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="vignette"></div>
+  <div id="floatLayer"></div>
+  <div id="cursorTrail"></div>
+
+  <header class="navbar scrolled">
+    <div class="logo">N ❤ S</div>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="gallery.html">Gallery</a>
+      <a href="timeline.html" class="active">Timeline</a>
+    </nav>
+  </header>
+
+  <div class="timeline-container">
+    <h1>Our Journey ❤️</h1>
+
+    <div class="timeline-track">
+
+      <!-- FIRST MEETING -->
+      <div class="timeline-item visible" data-event="first-meeting">
+        <div class="timeline-card">
+          <div class="tc-text">
+            <div class="date">First Meeting</div>
+            <div class="content">The day everything began.</div>
+          </div>
+          <div class="tc-image empty" id="img-first-meeting">
+            <div class="img-click" onclick="openMainImg('first-meeting')">
+              <svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="extra-photos" id="extras-first-meeting"></div>
+      </div>
+
+      <!-- FIRST DATE -->
+      <div class="timeline-item visible" data-event="first-date">
+        <div class="timeline-card">
+          <div class="tc-text">
+            <div class="date">First Date</div>
+            <div class="content">The most beautiful date of my life.</div>
+          </div>
+          <div class="tc-image empty" id="img-first-date">
+            <div class="img-click" onclick="openMainImg('first-date')">
+              <svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="extra-photos" id="extras-first-date"></div>
+      </div>
+
+      <!-- FIRST TRIP — hardcoded: 22.jpg -->
+      <div class="timeline-item visible" data-event="first-trip">
+        <div class="timeline-card">
+          <div class="tc-text">
+            <div class="date">Our First Trip</div>
+            <div class="content">Sunsets and memories together.</div>
+          </div>
+          <div class="tc-image" id="img-first-trip">
+            <img src="images/22.jpg" alt="Our First Trip" id="mainImg-first-trip">
+            <div class="img-click" onclick="openLb(['images/22.jpg'], 0)">
+              <svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="extra-photos" id="extras-first-trip"></div>
+      </div>
+
+      <!-- TODAY — hardcoded: 32.jpg -->
+      <div class="timeline-item visible" data-event="today">
+        <div class="timeline-card">
+          <div class="tc-text">
+            <div class="date">Today</div>
+            <div class="content">And this is only the beginning.</div>
+          </div>
+          <div class="tc-image" id="img-today">
+            <img src="images/32.jpg" alt="Today" id="mainImg-today">
+            <div class="img-click" onclick="openLb(['images/32.jpg'], 0)">
+              <svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="extra-photos" id="extras-today"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- LIGHTBOX -->
+  <div class="tl-lightbox" id="tlLightbox" onclick="closeLb()">
+    <button class="tl-lb-close" onclick="event.stopPropagation();closeLb()">×</button>
+    <button class="tl-lb-arrow prev" onclick="event.stopPropagation();lbNav(-1)">‹</button>
+    <button class="tl-lb-arrow next" onclick="event.stopPropagation();lbNav(1)">›</button>
+    <img id="tlLbImg" class="tl-lb-img" src="" alt="" onclick="event.stopPropagation()">
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    const EVENTS = ['first-meeting', 'first-date', 'first-trip', 'today'];
+
+    /* Default main images for events that have one hardcoded */
+    const DEFAULT_IMGS = {
+      'first-trip': 'images/22.jpg',
+      'today':      'images/32.jpg'
+    };
+
+    function getPhotos(id) {
+      try { return JSON.parse(localStorage.getItem('event_' + id) || '[]'); } catch { return []; }
+    }
+
+    /* ── RENDER EXTRA PHOTOS (from localStorage) ── */
+    function renderExtras() {
+      EVENTS.forEach(id => {
+        const strip  = document.getElementById('extras-' + id);
+        const photos = getPhotos(id);
+        if (!strip) return;
+        strip.innerHTML = '';
+
+        /* For events with NO hardcoded image, use first localStorage photo as main */
+        if (!DEFAULT_IMGS[id] && photos.length > 0) {
+          const panel = document.getElementById('img-' + id);
+          if (panel) {
+            panel.classList.remove('empty');
+            // set or update the img tag
+            let img = panel.querySelector('img');
+            if (!img) {
+              img = document.createElement('img');
+              img.alt = '';
+              panel.insertBefore(img, panel.firstChild);
+            }
+            img.src = photos[0];
+            // update click handler to open full set
+            const clickDiv = panel.querySelector('.img-click');
+            if (clickDiv) clickDiv.onclick = () => openLb(photos, 0);
+          }
+          /* remaining photos go into the strip */
+          photos.slice(1).forEach((src, i) => {
+            addThumb(strip, photos, i + 1);
+          });
+        } else {
+          /* Event already has a hardcoded main image; all localStorage photos go in strip */
+          const allForLb = DEFAULT_IMGS[id]
+            ? [DEFAULT_IMGS[id], ...photos]
+            : photos;
+
+          photos.forEach((src, i) => {
+            const realIdx = DEFAULT_IMGS[id] ? i + 1 : i;
+            addThumb(strip, allForLb, realIdx);
+          });
+        }
+      });
+    }
+
+    function addThumb(strip, photosArr, idx) {
+      const img = document.createElement('img');
+      img.className = 'extra-photo';
+      img.src       = photosArr[idx];
+      img.alt       = '';
+      img.loading   = 'lazy';
+      img.addEventListener('click', () => openLb(photosArr, idx));
+      strip.appendChild(img);
+    }
+
+    /* Also update main click handler for hardcoded events to include extras */
+    function openMainImg(eventId) {
+      const photos = getPhotos(eventId);
+      if (photos.length > 0) {
+        openLb(photos, 0);
+      }
+      /* If no photos yet, do nothing — panel stays as empty heart */
+    }
+
+    renderExtras();
+
+    /* ── LIGHTBOX ── */
+    let lbPhotos = [], lbIndex = 0;
+
+    function openLb(photos, index) {
+      lbPhotos = photos;
+      lbIndex  = index;
+      const lb = document.getElementById('tlLightbox');
+      lb.classList.toggle('single', photos.length === 1);
+      document.getElementById('tlLbImg').src = photos[index];
+      lb.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeLb() {
+      document.getElementById('tlLightbox').classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    function lbNav(dir) {
+      lbIndex = (lbIndex + dir + lbPhotos.length) % lbPhotos.length;
+      const img = document.getElementById('tlLbImg');
+      img.style.opacity = '0'; img.style.transform = 'scale(0.94)';
+      setTimeout(() => {
+        img.src = lbPhotos[lbIndex];
+        img.style.opacity = '1'; img.style.transform = 'scale(1)';
+      }, 200);
+    }
+
+    document.addEventListener('keydown', e => {
+      if (!document.getElementById('tlLightbox').classList.contains('open')) return;
+      if (e.key === 'Escape')     closeLb();
+      if (e.key === 'ArrowLeft')  lbNav(-1);
+      if (e.key === 'ArrowRight') lbNav(1);
+    });
+  </script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      initFloatingObjects();
+      initCursorTrail();
+    });
+  </script>
+
+</body>
+</html>

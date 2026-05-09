@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gallery – Our Memories</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+
+    /* ══ PAGE HEADER ══ */
+    .gallery-hero {
+      padding: 130px 64px 50px;
+    }
+
+    .gallery-hero h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(72px, 10vw, 130px);
+      letter-spacing: 4px;
+      line-height: 0.92;
+      color: #fff;
+      display: inline-block;
+    }
+
+    .gallery-hero h1 .red { color: var(--red); }
+
+    .gallery-hero p {
+      margin-top: 18px;
+      font-size: 16px; font-weight: 300;
+      color: var(--text-muted); letter-spacing: 1px;
+    }
+
+    .gallery-count {
+      display: inline-block;
+      background: rgba(229,9,20,0.12);
+      border: 1px solid rgba(229,9,20,0.3);
+      color: var(--red); font-size: 12px; font-weight: 600;
+      letter-spacing: 2px; padding: 5px 14px;
+      border-radius: 4px; margin-bottom: 24px; text-transform: uppercase;
+    }
+
+    /* ══ MASONRY (CSS columns — natural aspect ratios) ══ */
+    .masonry {
+      column-count: 4;
+      column-gap: 10px;
+      padding: 0 64px 80px;
+    }
+
+    .masonry-item {
+      break-inside: avoid;
+      -webkit-column-break-inside: avoid; /* Safari */
+      margin-bottom: 10px;
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      position: relative;
+      display: block;
+    }
+
+    .masonry-item img {
+      width: 100%;
+      height: auto;       /* natural aspect ratio — no cropping */
+      display: block;
+      transition: transform 0.45s ease, filter 0.45s ease;
+      filter: brightness(0.88);
+    }
+
+    .masonry-item:hover img {
+      transform: scale(1.04);
+      filter: brightness(1.0);
+    }
+
+    .masonry-item .hover-overlay {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.3);
+      opacity: 0; transition: opacity 0.3s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .masonry-item:hover .hover-overlay { opacity: 1; }
+
+    .hover-overlay svg {
+      width: 36px; height: 36px;
+      fill: none; stroke: white; stroke-width: 2; opacity: 0.9;
+    }
+
+    @media (max-width: 1100px) { .masonry { column-count: 3; } }
+    @media (max-width: 750px)  {
+      .masonry { column-count: 2; padding: 0 20px 60px; }
+      .gallery-hero { padding: 110px 20px 40px; }
+    }
+    @media (max-width: 450px)  { .masonry { column-count: 1; } }
+
+    /* ══ LIGHTBOX ══
+       Fully self-contained — overrides any styles.css rules.
+    ══ */
+    .lightbox {
+      display: none !important;          /* hidden by default */
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0,0,0,0.94);
+      backdrop-filter: blur(14px);
+      justify-content: center; align-items: center;
+      padding: 0 !important;            /* reset styles.css padding */
+    }
+    .lightbox.open {
+      display: flex !important;
+    }
+
+    .lightbox-inner {
+      display: flex; align-items: center; justify-content: center;
+      max-width: 92vw; max-height: 92vh;
+    }
+
+    .lightbox-inner img {
+      max-width: 88vw; max-height: 88vh;
+      width: auto; height: auto;        /* keep natural ratio */
+      border-radius: 10px;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.8);
+      object-fit: contain;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+      display: block;
+    }
+
+    .lightbox-close {
+      position: fixed; top: 20px; right: 28px;
+      font-size: 38px; cursor: pointer;
+      color: rgba(255,255,255,0.5); background: none; border: none;
+      transition: color 0.2s, transform 0.2s;
+      line-height: 1; z-index: 10000;
+    }
+    .lightbox-close:hover { color: #fff; transform: rotate(90deg); }
+
+    .lb-arrow {
+      position: fixed; top: 50%; transform: translateY(-50%);
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: white; font-size: 28px;
+      width: 52px; height: 52px; border-radius: 50%;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s; z-index: 10000; user-select: none;
+    }
+    .lb-arrow:hover { background: rgba(255,255,255,0.18); }
+    .lb-arrow.prev { left: 20px; }
+    .lb-arrow.next { right: 20px; }
+
+    /* ══ ADMIN PANEL ══ */
+    #adminPanel {
+      display: none;
+      position: fixed; inset: 0; z-index: 19999;
+      background: rgba(0,0,0,0.96);
+      backdrop-filter: blur(20px);
+      justify-content: center; align-items: center;
+    }
+    #adminPanel.open { display: flex; }
+
+    .admin-box {
+      background: #141414;
+      border: 1px solid rgba(229,9,20,0.3);
+      border-radius: 16px; padding: 48px;
+      width: min(560px, 90vw); position: relative;
+      max-height: 90vh; overflow-y: auto;
+    }
+
+    .admin-box h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 36px; letter-spacing: 3px;
+      color: var(--red); margin-bottom: 6px;
+    }
+    .admin-box p.sub { font-size: 13px; color: var(--text-muted); margin-bottom: 32px; }
+
+    .pin-section { margin-bottom: 28px; }
+    .pin-section label {
+      display: block; font-size: 12px; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px;
+    }
+    .pin-row { display: flex; gap: 10px; }
+    .pin-row input {
+      width: 52px; height: 52px; background: #0a0a0a;
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+      color: white; font-size: 22px; text-align: center; outline: none;
+      transition: border-color 0.2s; caret-color: var(--red);
+    }
+    .pin-row input:focus { border-color: var(--red); }
+    .pin-row input.wrong { border-color: #ff4444; animation: shake 0.3s ease; }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      25%     { transform: translateX(-6px); }
+      75%     { transform: translateX(6px); }
+    }
+
+    .drop-zone {
+      display: none; border: 2px dashed rgba(229,9,20,0.4);
+      border-radius: 12px; padding: 40px 24px;
+      text-align: center; cursor: pointer;
+      transition: border-color 0.3s, background 0.3s; margin-bottom: 20px;
+    }
+    .drop-zone.active-zone { display: block; }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--red); background: rgba(229,9,20,0.06);
+    }
+    .drop-zone .dz-icon { font-size: 40px; margin-bottom: 12px; }
+    .drop-zone p { font-size: 14px; color: var(--text-muted); }
+    .drop-zone span { color: var(--red); font-weight: 600; cursor: pointer; }
+    #fileInput { display: none; }
+
+    .preview-strip { display: none; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    .preview-strip.has-files { display: flex; }
+    .preview-thumb {
+      width: 70px; height: 70px; border-radius: 8px;
+      object-fit: cover; border: 2px solid rgba(229,9,20,0.4);
+    }
+
+    .admin-actions { display: flex; gap: 12px; }
+    .btn-admin {
+      flex: 1; padding: 14px; border: none; border-radius: 8px;
+      font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: filter 0.2s, transform 0.2s; letter-spacing: 0.5px;
+    }
+    .btn-admin.primary { background: var(--red); color: white; }
+    .btn-admin.primary:hover { filter: brightness(1.15); transform: scale(1.02); }
+    .btn-admin.secondary { background: rgba(255,255,255,0.07); color: white; }
+    .btn-admin.secondary:hover { background: rgba(255,255,255,0.13); }
+
+    .admin-close {
+      position: absolute; top: 20px; right: 24px;
+      background: none; border: none; color: rgba(255,255,255,0.3);
+      font-size: 26px; cursor: pointer; transition: color 0.2s;
+    }
+    .admin-close:hover { color: white; }
+
+    .upload-status {
+      margin-top: 14px; font-size: 13px; color: #46d369;
+      text-align: center; min-height: 20px; letter-spacing: 0.5px;
+    }
+    .upload-status.error { color: #ff4444; }
+
+  </style>
+  <style>
+    #floatLayer{position:fixed;inset:0;pointer-events:none;z-index:5;overflow:hidden;}
+    #cursorTrail{position:fixed;inset:0;pointer-events:none;z-index:6;overflow:hidden;}
+    .float-obj{position:absolute;bottom:-50px;opacity:0;animation:floatUp linear both;user-select:none;}
+    @keyframes floatUp{0%{transform:translateY(0) translateX(0) rotate(0deg) scale(.5);opacity:0}8%{opacity:.85}50%{opacity:.7;transform:translateY(-55vh) translateX(calc(var(--drift)*.6)) rotate(calc(var(--rot)*.7)) scale(1.1)}85%{opacity:.3}100%{transform:translateY(-115vh) translateX(var(--drift)) rotate(var(--rot)) scale(.7);opacity:0}}
+    .cursor-heart{position:fixed;transform:translate(-50%,-50%);pointer-events:none;user-select:none;animation:cursorPop .9s ease-out forwards;}
+    @keyframes cursorPop{0%{opacity:1;transform:translate(-50%,-50%) scale(1) translateY(0)}60%{opacity:.7;transform:translate(-50%,-50%) scale(1.4) translateY(-18px)}100%{opacity:0;transform:translate(-50%,-50%) scale(.5) translateY(-36px)}}
+    .vignette{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at center,transparent 55%,rgba(229,9,20,0.05) 100%);animation:vignettePulse 4s ease-in-out infinite;}
+    @keyframes vignettePulse{0%,100%{opacity:.6}50%{opacity:1}}
+  </style>
+</head>
+<body>
+  <div class="vignette"></div>
+  <div id="floatLayer"></div>
+  <div id="cursorTrail"></div>
+
+  <header class="navbar scrolled" id="navbar">
+    <!-- Triple-click the logo to open admin panel -->
+    <div class="logo" id="logoTrigger" style="cursor:default;user-select:none;">N ❤ S</div>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="gallery.html" class="active">Gallery</a>
+      <a href="timeline.html">Timeline</a>
+    </nav>
+  </header>
+
+  <div class="gallery-hero">
+    <div class="gallery-count" id="imgCount">46 Memories</div>
+    <h1>Our<br><span class="red">Memories</span></h1>
+    <p>Every moment with you is worth a picture.</p>
+  </div>
+
+  <div class="masonry" id="masonryGrid"></div>
+
+  <!-- LIGHTBOX -->
+  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <button class="lightbox-close" onclick="event.stopPropagation();closeLightbox()">×</button>
+    <button class="lb-arrow prev" onclick="event.stopPropagation();lbNav(-1)">‹</button>
+    <button class="lb-arrow next" onclick="event.stopPropagation();lbNav(1)">›</button>
+    <div class="lightbox-inner" onclick="event.stopPropagation()">
+      <img id="lightboxImg" src="" alt="">
+    </div>
+  </div>
+
+  <!-- HIDDEN ADMIN PANEL -->
+  <div id="adminPanel">
+    <div class="admin-box">
+      <button class="admin-close" onclick="closeAdmin()">×</button>
+      <h2>Admin Upload</h2>
+      <p class="sub">Only for Nikhil &nbsp;·&nbsp; Enter your PIN</p>
+
+      <div class="pin-section" id="pinSection">
+        <label>PIN</label>
+        <div class="pin-row">
+          <input type="password" maxlength="1" class="pin-digit" id="p0" inputmode="numeric">
+          <input type="password" maxlength="1" class="pin-digit" id="p1" inputmode="numeric">
+          <input type="password" maxlength="1" class="pin-digit" id="p2" inputmode="numeric">
+          <input type="password" maxlength="1" class="pin-digit" id="p3" inputmode="numeric">
+        </div>
+      </div>
+
+      <div class="drop-zone" id="dropZone">
+        <div class="dz-icon">🖼️</div>
+        <p>Drag photos here or <span onclick="document.getElementById('fileInput').click()">browse</span></p>
+        <p style="font-size:11px;margin-top:8px;color:#555;">JPG · PNG · WEBP</p>
+        <input type="file" id="fileInput" multiple accept="image/*">
+      </div>
+
+      <div class="preview-strip" id="previewStrip"></div>
+
+      <div class="admin-actions" id="adminActions" style="display:none">
+        <button class="btn-admin secondary" onclick="clearUpload()">Cancel</button>
+        <button class="btn-admin primary" onclick="saveImages()">Add to Gallery</button>
+      </div>
+
+      <div class="upload-status" id="uploadStatus"></div>
+    </div>
+  </div>
+
+  <script>
+    /* ── IMAGE POOL ── */
+    const BASE_COUNT  = 46;
+    const baseImages  = Array.from({length: BASE_COUNT}, (_, i) => `images/${i+1}.jpg`);
+
+    function getExtras() {
+      try { return JSON.parse(localStorage.getItem('galleryExtras') || '[]'); } catch { return []; }
+    }
+    function saveExtras(arr) { localStorage.setItem('galleryExtras', JSON.stringify(arr)); }
+
+    let allImages        = [...baseImages, ...getExtras()];
+    let currentLbIndex   = 0;
+
+    /* ── BUILD MASONRY GRID ── */
+    function buildGrid() {
+      const grid = document.getElementById('masonryGrid');
+      grid.innerHTML = '';
+      document.getElementById('imgCount').textContent = allImages.length + ' Memories';
+
+      allImages.forEach((src, i) => {
+        const item = document.createElement('div');
+        item.className = 'masonry-item';
+        // NOTE: no column-span:all featured items — that class breaks CSS columns in many browsers
+
+        const img = document.createElement('img');
+        img.src     = src;
+        img.alt     = '';
+        img.loading = 'lazy';
+
+        const overlay = document.createElement('div');
+        overlay.className = 'hover-overlay';
+        overlay.innerHTML = `<svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>`;
+
+        item.appendChild(img);
+        item.appendChild(overlay);
+        item.addEventListener('click', () => openLightbox(i));
+        grid.appendChild(item);
+      });
+    }
+
+    buildGrid();
+
+    /* ── LIGHTBOX ── */
+    function openLightbox(index) {
+      currentLbIndex = index;
+      const img = document.getElementById('lightboxImg');
+      img.style.opacity   = '1';
+      img.style.transform = 'scale(1)';
+      img.src = allImages[index];
+      document.getElementById('lightbox').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    function lbNav(dir) {
+      currentLbIndex = (currentLbIndex + dir + allImages.length) % allImages.length;
+      const img = document.getElementById('lightboxImg');
+
+      // BUG FIX: set transition BEFORE changing opacity so it actually animates
+      img.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+      img.style.opacity    = '0';
+      img.style.transform  = 'scale(0.94)';
+
+      setTimeout(() => {
+        img.src             = allImages[currentLbIndex];
+        img.style.opacity   = '1';
+        img.style.transform = 'scale(1)';
+      }, 210);
+    }
+
+    document.addEventListener('keydown', e => {
+      const lb = document.getElementById('lightbox');
+      if (e.key === 'Escape' && lb.classList.contains('open')) { closeLightbox(); return; }
+      if (lb.classList.contains('open')) {
+        if (e.key === 'ArrowLeft')  lbNav(-1);
+        if (e.key === 'ArrowRight') lbNav(1);
+      }
+      // Also close admin on Escape
+      if (e.key === 'Escape') closeAdmin();
+    });
+
+    /* ── HIDDEN ADMIN: triple-click logo ── */
+    const PIN = '1610'; // ← change to your secret PIN
+    let logoClicks = 0, logoTimer;
+
+    document.getElementById('logoTrigger').addEventListener('click', () => {
+      logoClicks++;
+      clearTimeout(logoTimer);
+      logoTimer = setTimeout(() => { logoClicks = 0; }, 600);
+      if (logoClicks >= 3) { logoClicks = 0; openAdmin(); }
+    });
+
+    function openAdmin() {
+      document.getElementById('adminPanel').classList.add('open');
+      document.getElementById('pinSection').style.display    = 'block';
+      document.getElementById('dropZone').classList.remove('active-zone');
+      document.getElementById('adminActions').style.display  = 'none';
+      document.getElementById('previewStrip').className      = 'preview-strip';
+      document.getElementById('uploadStatus').textContent    = '';
+      document.body.style.overflow = 'hidden';
+      document.querySelectorAll('.pin-digit').forEach(el => { el.value = ''; el.classList.remove('wrong'); });
+      setTimeout(() => document.getElementById('p0').focus(), 100);
+    }
+
+    function closeAdmin() {
+      document.getElementById('adminPanel').classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    /* PIN digits */
+    document.querySelectorAll('.pin-digit').forEach((input, idx) => {
+      input.addEventListener('input', () => {
+        input.value = input.value.replace(/\D/, '');
+        if (input.value && idx < 3) document.getElementById('p' + (idx+1)).focus();
+        if (idx === 3 && input.value) checkPin();
+      });
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Backspace' && !input.value && idx > 0) document.getElementById('p' + (idx-1)).focus();
+      });
+    });
+
+    function checkPin() {
+      const entered = ['p0','p1','p2','p3'].map(id => document.getElementById(id).value).join('');
+      if (entered === PIN) {
+        document.getElementById('pinSection').style.display = 'none';
+        document.getElementById('dropZone').classList.add('active-zone');
+        document.getElementById('uploadStatus').textContent = '✓ Welcome, Nikhil!';
+        setTimeout(() => document.getElementById('uploadStatus').textContent = '', 2000);
+      } else {
+        document.querySelectorAll('.pin-digit').forEach(el => {
+          el.classList.add('wrong');
+          setTimeout(() => el.classList.remove('wrong'), 600);
+          el.value = '';
+        });
+        document.getElementById('p0').focus();
+      }
+    }
+
+    /* File handling */
+    let pendingFiles = [];
+
+    const dropZone  = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+
+    dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop',      e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFiles(Array.from(e.dataTransfer.files)); });
+    fileInput.addEventListener('change',   () => handleFiles(Array.from(fileInput.files)));
+
+    function handleFiles(files) {
+      const images = files.filter(f => f.type.startsWith('image/'));
+      if (!images.length) return;
+
+      const strip = document.getElementById('previewStrip');
+      strip.innerHTML = '';
+      pendingFiles = [];
+
+      let loaded = 0;
+      images.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = ev => {
+          pendingFiles.push(ev.target.result);
+          const thumb = document.createElement('img');
+          thumb.className = 'preview-thumb';
+          thumb.src = ev.target.result;
+          strip.appendChild(thumb);
+          loaded++;
+          if (loaded === images.length) {
+            strip.className = 'preview-strip has-files';
+            document.getElementById('adminActions').style.display = 'flex';
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function saveImages() {
+      if (!pendingFiles.length) return;
+
+      // BUG FIX: capture count BEFORE clearing
+      const count  = pendingFiles.length;
+      const extras = getExtras();
+      pendingFiles.forEach(src => extras.push(src));
+      saveExtras(extras);
+
+      allImages = [...baseImages, ...extras];
+      buildGrid();
+      clearUpload();
+
+      const status = document.getElementById('uploadStatus');
+      status.textContent = `✓ ${count} photo${count > 1 ? 's' : ''} added!`;
+      setTimeout(() => { status.textContent = ''; closeAdmin(); }, 1800);
+    }
+
+    function clearUpload() {
+      pendingFiles = [];
+      document.getElementById('previewStrip').innerHTML = '';
+      document.getElementById('previewStrip').className = 'preview-strip';
+      document.getElementById('adminActions').style.display = 'none';
+      document.getElementById('fileInput').value = '';
+    }
+
+    /* Close admin on backdrop click */
+    document.getElementById('adminPanel').addEventListener('click', function(e) {
+      if (e.target === this) closeAdmin();
+    });
+  </script>
+
+  <script src="app.js"></script>
+  <script>
+    // Boot ambient animations on standalone pages
+    document.addEventListener('DOMContentLoaded', () => {
+      initFloatingObjects();
+      initCursorTrail();
+    });
+  </script>
+</body>
